@@ -63,25 +63,31 @@ def kcp_detection(correlations, max_change_points):
     return optimal_change_points, min_within_phase_variance
 
 
-def permutation_test(time_series, max_change_points=2, num_permutations=1000, window_size=15) -> dict:
-    def parallel_kcp_detection(permuted_series) -> float:
+def permutation_test(time_series: np.ndarray, max_change_points: int = 2, num_permutations: int = 1000, window_size: int = 15) -> dict:
+    def parallel_kcp_detection(permuted_series: np.ndarray) -> tuple[float, float]:
         perm_corrs = running_correlations(permuted_series, window_size)
         _, perm_var = kcp_detection(perm_corrs, max_change_points)
-        return perm_var
+        perm_drop = perm_var - within_phase_variance(0, perm_corrs.shape[0], compute_kernel_matrix(perm_corrs, np.median(squareform(pdist(perm_corrs, 'euclidean')))))
+        return perm_var, perm_drop
 
     original_corrs = running_correlations(time_series, window_size)
     original_optimal_points, original_min_variance = kcp_detection(original_corrs, max_change_points)
+    original_drop = original_min_variance - within_phase_variance(0, original_corrs.shape[0], compute_kernel_matrix(original_corrs, np.median(squareform(pdist(original_corrs, 'euclidean')))))
 
-    permuted_variances = Parallel(n_jobs=-1)(
+    permuted_results = Parallel(n_jobs=-1)(
         delayed(parallel_kcp_detection)(np.random.permutation(time_series))
         for _ in range(num_permutations)
     )
 
+    permuted_variances, permuted_drops = zip(*permuted_results)
+
     p_variance_test = np.mean(permuted_variances >= original_min_variance)
+    p_drop_test = np.mean(permuted_drops >= original_drop)
 
     return {
         'change_points': original_optimal_points,
-        'p_variance_test': p_variance_test
+        'p_variance_test': p_variance_test,
+        'p_drop_test': p_drop_test
     }
 
 
