@@ -6,10 +6,8 @@
 ## Reference
 Метод основан на работе, описанной в статье:
 
-Jedelyn Cabrieto, Francis Tuerlinckx, Peter Kuppens, 
-Borbála Hunyadi & Eva Ceulemans (2017).
-**Testing for the Presence of Correlation Changes in a Multivariate Time Series: A
-Permutation Based Approach.**
+
+>Cabrieto, J., Tuerlinckx, F., Kuppens, P., Hunyadi, B., & Ceulemans, E. (2018). Testing for the Presence of Correlation Changes in a Multivariate Time Series: A Permutation Based Approach. Scientific reports, 8(1), 769. https://doi.org/10.1038/s41598-017-19067-2.**
 
 ## Установка
 1. Клонирование репозитория:
