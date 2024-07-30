@@ -2,10 +2,6 @@ import numpy as np
 from scipy.spatial.distance import pdist, squareform
 from joblib import Parallel, delayed
 from typing import List, Tuple, Dict
-import matplotlib
-
-matplotlib.use('TkAgg')
-import matplotlib.pyplot as plt
 
 
 def running_correlations(data: np.ndarray, window_size: int) -> np.ndarray:
@@ -190,12 +186,13 @@ def permutation_test(time_series: np.ndarray, max_change_points: int = 2, num_pe
         perm_change_points, perm_variances, perm_optimal_k = kcp_detection(perm_corrs, max_change_points)
         perm_var = perm_variances[perm_optimal_k - 1]
 
-        perm_kernel_matrix = compute_kernel_matrix(perm_corrs,np.median(squareform(pdist(perm_corrs))))
+        perm_kernel_matrix = compute_kernel_matrix(perm_corrs, np.median(squareform(pdist(perm_corrs))))
         perm_drop = perm_var - within_phase_variance(0, perm_corrs.shape[0], perm_kernel_matrix)
         return perm_var, perm_drop
 
     original_corrs = running_correlations(time_series, window_size)
-    original_change_points, original_min_variances, original_optimal_k = kcp_detection(original_corrs, max_change_points)
+    original_change_points, original_min_variances, original_optimal_k = kcp_detection(original_corrs,
+                                                                                       max_change_points)
 
     original_var = original_min_variances[original_optimal_k - 1]
     original_kernel_matrix = compute_kernel_matrix(original_corrs, np.median(squareform(pdist(original_corrs))))
@@ -218,59 +215,6 @@ def permutation_test(time_series: np.ndarray, max_change_points: int = 2, num_pe
         'all_change_points': original_change_points,
         'all_min_variances': original_min_variances
     }
-
-
-def plot_time_series(time_series: np.ndarray,
-                                      window_size: int,
-                                      real_change_points: List[int],
-                                      predicted_change_points: List[int]) -> None:
-    plt.figure(figsize=(14, 8))
-
-    plt.subplot(2, 1, 1)
-    for i in range(time_series.shape[1]):
-        plt.plot(time_series[:, i], label=f'Series {i + 1}')
-
-    for cp in real_change_points:
-        plt.axvline(x=cp, color='red', linestyle='--', label='Real Change Point')
-
-    for pcp in predicted_change_points:
-        plt.axvline(x=pcp, color='green', linestyle='--', label='Predicted Change Point')
-
-    plt.title('Time Series with Real and Predicted Change Points')
-    plt.xlabel('Time')
-    plt.ylabel('Value')
-    plt.legend()
-
-    plt.subplot(2, 1, 2)
-    running_corrs = running_correlations(time_series, window_size)
-    num_series = time_series.shape[1]
-    pair_indices = [(i, j) for i in range(num_series) for j in range(i + 1, num_series)]
-
-    for idx, (i, j) in enumerate(pair_indices):
-        plt.plot(running_corrs[:, idx], label=f'Correlation {i + 1}-{j + 1}')
-
-    for cp in real_change_points:
-        plt.axvline(x=cp, color='red', linestyle='--')
-
-    for pcp in predicted_change_points:
-        plt.axvline(x=pcp, color='green', linestyle='--')
-
-    plt.title('Running Correlations with Real and Predicted Change Points')
-    plt.xlabel('Time Window')
-    plt.ylabel('Correlation')
-    plt.legend()
-    plt.tight_layout()
-    plt.show()
-
-
-def plot_min_variances(min_variances: List[float], max_change_points: int) -> None:
-    plt.figure(figsize=(10, 6))
-    plt.plot(range(1, max_change_points + 1), min_variances, marker='o', linestyle='-')
-    plt.title('Minimized Within-Phase Variance for Each Number of Change Points')
-    plt.xlabel('Number of Change Points')
-    plt.ylabel('Minimized Within-Phase Variance')
-    plt.grid(True)
-    plt.show()
 
 
 def print_summary(time_series: np.ndarray, window_size: int, max_change_points: int, num_permutations: int,

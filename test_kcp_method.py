@@ -1,7 +1,9 @@
 import numpy as np
-from main_kcp_method import permutation_test, print_summary, plot_time_series, plot_min_variances
+from kcp_detection.core import permutation_test, print_summary
+from kcp_detection.plotting import plot_time_series, plot_min_variances
 
 
+# TODO Обобщить генерацию данных; например, до сигнатуры (list_of_change_points: List[int])
 def generate_synthetic_data(num_points: int = 200) -> np.ndarray:
     np.random.seed(42)
     time_series = np.zeros((num_points, 3))
