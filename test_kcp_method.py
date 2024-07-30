@@ -1,6 +1,6 @@
 import numpy as np
-from kcp_detection.core import permutation_test, print_summary
-from kcp_detection.plotting import plot_time_series, plot_min_variances
+from kcp_test.core import permutation_test, print_summary
+from kcp_test.plotting import plot_time_series, plot_min_variances
 
 
 # TODO Обобщить генерацию данных; например, до сигнатуры (list_of_change_points: List[int])

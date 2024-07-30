@@ -8,7 +8,7 @@ matplotlib.use('TkAgg')
 
 from matplotlib import pyplot as plt
 
-from kcp_detection.core import running_correlations
+from kcp_test.core import running_correlations
 
 
 def plot_time_series(time_series: np.ndarray,
