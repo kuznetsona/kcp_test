@@ -1,8 +1,11 @@
 import numpy as np
+import logging
 from scipy.spatial.distance import pdist, squareform
 from joblib import Parallel, delayed
 from typing import List, Tuple, Dict
 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 def running_correlations(data: np.ndarray, window_size: int) -> np.ndarray:
     num_points, num_vars = data.shape
@@ -10,26 +13,37 @@ def running_correlations(data: np.ndarray, window_size: int) -> np.ndarray:
 
     for i in range(num_points - window_size + 1):
         window = data[i:i + window_size]
-        corr_matrix = np.corrcoef(window, rowvar=False)
+        if np.all(np.std(window, axis=0) > 0):
+            corr_matrix = np.corrcoef(window, rowvar=False)
+        else:
+            corr_matrix = np.eye(num_vars)
+
         lower_triangle_indices = np.tril_indices(num_vars, -1)
         running_corrs.append(corr_matrix[lower_triangle_indices])
 
     running_corrs = np.array(running_corrs)
     fisher_z = np.arctanh(running_corrs)
+    logger.debug(f"Running correlations calculated with window size {window_size}.")
     return fisher_z
+
 
 
 def compute_kernel_matrix(running_corrs: np.ndarray, bandwidth: float) -> np.ndarray:
     pairwise_dists = squareform(pdist(running_corrs, 'euclidean'))
     kernel_matrix = np.exp(-pairwise_dists ** 2 / (2 * bandwidth ** 2))
+    logger.debug(f"Kernel matrix computed with bandwidth {bandwidth}.")
     return kernel_matrix
 
 
 def within_phase_variance(start: int, end: int, kernel_matrix: np.ndarray) -> float:
     n = end - start
     if n <= 1:
-        return float('inf')
-    return n - (1 / n) * np.sum(kernel_matrix[start:end, start:end])
+        logger.debug(f"Skipping variance computation for range {start}-{end} due to insufficient range.")
+        return 0.0
+    variance = n - (1 / n) * np.sum(kernel_matrix[start:end, start:end])
+    logger.debug(f"Within phase variance computed for range {start}-{end}: {variance}.")
+    return variance
+
 
 
 def locate_cp(H: np.ndarray, ncp: int, wsize: int) -> np.ndarray:
@@ -51,6 +65,7 @@ def locate_cp(H: np.ndarray, ncp: int, wsize: int) -> np.ndarray:
         cps = np.ceil((wsize / 2 + 0.5) + (cps - 1) * wstep)
 
     cps = cps.astype(int)
+    logger.debug(f"Change points located: {cps[1:-1]}")
     return cps[1:-1]
 
 
@@ -113,6 +128,7 @@ def get_scatter_matrix(II_: np.ndarray, X_: np.ndarray, H_: np.ndarray):
                         II[k, i] = tmp
                         H[k, i] = j + 1
 
+    logger.debug(f"Scatter matrix and median kernel matrix computed.")
     return II, H, medianK
 
 
@@ -131,6 +147,7 @@ def elbow_method(min_variances: List[float]) -> int:
     dist_to_line = np.sqrt(np.sum(vec_to_line ** 2, axis=1))
     optimal_idx = np.argmax(dist_to_line)
 
+    logger.debug(f"Optimal number of change points determined: {optimal_idx + 1}")
     return optimal_idx + 1
 
 
@@ -146,6 +163,7 @@ def kcp_detection(correlations: np.ndarray, max_change_points: int):
     best_min_variance = []
 
     if medianK == 0:
+        logger.error("Median kernel value is zero. Cannot proceed with change point detection.")
         return best_change_points, best_min_variance
 
     for k in range(1, max_change_points + 1):
@@ -176,6 +194,7 @@ def kcp_detection(correlations: np.ndarray, max_change_points: int):
         best_change_points.append(optimal_change_points)
 
     optimal_k = elbow_method(best_min_variance)
+    logger.debug(f"Change points detected: {best_change_points}, with minimum variance {best_min_variance}. Optimal K: {optimal_k}")
     return best_change_points, best_min_variance, optimal_k
 
 
@@ -190,6 +209,7 @@ def permutation_test(time_series: np.ndarray, max_change_points: int = 2, num_pe
         perm_drop = perm_var - within_phase_variance(0, perm_corrs.shape[0], perm_kernel_matrix)
         return perm_var, perm_drop
 
+    logger.info("Starting permutation test.")
     original_corrs = running_correlations(time_series, window_size)
     original_change_points, original_min_variances, original_optimal_k = kcp_detection(original_corrs,
                                                                                        max_change_points)
@@ -207,6 +227,8 @@ def permutation_test(time_series: np.ndarray, max_change_points: int = 2, num_pe
 
     p_variance_test = np.mean(permuted_variances >= original_var)
     p_drop_test = np.mean(permuted_drops >= original_drop)
+
+    logger.info(f"Permutation test completed. P-variance test: {p_variance_test:.4f}, P-drop test: {p_drop_test:.4f}")
 
     return {
         'change_points': original_change_points[original_optimal_k - 1] if original_change_points else [],
