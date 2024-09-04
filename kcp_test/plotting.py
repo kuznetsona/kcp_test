@@ -1,15 +1,10 @@
 from typing import List
-
 import numpy as np
-
 import matplotlib
 
 matplotlib.use('TkAgg')
-
 from matplotlib import pyplot as plt
-
-from kcp_test.core import running_correlations
-
+from kcp_test.core import KCPDetector
 
 def plot_time_series(time_series: np.ndarray,
                      window_size: int,
@@ -33,7 +28,11 @@ def plot_time_series(time_series: np.ndarray,
     plt.legend()
 
     plt.subplot(2, 1, 2)
-    running_corrs = running_correlations(time_series, window_size)
+
+    detector = KCPDetector(max_change_points=2, window_size=window_size, num_permutations=100)
+
+    running_corrs = detector.running_correlations(time_series)
+
     num_series = time_series.shape[1]
     pair_indices = [(i, j) for i in range(num_series) for j in range(i + 1, num_series)]
 
@@ -53,10 +52,11 @@ def plot_time_series(time_series: np.ndarray,
     plt.tight_layout()
     plt.show()
 
-
 def plot_min_variances(min_variances: List[float], max_change_points: int) -> None:
     plt.figure(figsize=(10, 6))
+
     plt.plot(range(1, max_change_points + 1), min_variances, marker='o', linestyle='-')
+
     plt.title('Minimized Within-Phase Variance for Each Number of Change Points')
     plt.xlabel('Number of Change Points')
     plt.ylabel('Minimized Within-Phase Variance')
